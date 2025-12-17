@@ -41,7 +41,7 @@ WHERE
     AND CommitmentDiscountId IS NULL
     
     -- Past 30 days
-    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND BillingPeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
     
     -- Exclude corrections
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
@@ -76,7 +76,7 @@ SELECT
     -- Usage metrics
     SUM(PricingQuantity) AS TotalPricingQuantity,
     AVG(PricingQuantity) AS AvgDailyQuantity,
-    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysWithUsage,
+    COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)) AS DaysWithUsage,
     
     -- Cost metrics
     SUM(ListCost) AS TotalListCost,
@@ -87,11 +87,11 @@ SELECT
     AVG(ListUnitPrice) AS AvgListUnitPrice,
     
     -- Estimated annual projection (normalize to 30 days then multiply by 12)
-    (SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)), 0)) * 365 AS ProjectedAnnualSpend,
+    (SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)), 0)) * 365 AS ProjectedAnnualSpend,
     
     -- Savings estimates at different commitment levels
-    ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)), 0)) * 365) * 0.30 AS Est_Annual_Savings_30Pct,
-    ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)), 0)) * 365) * 0.40 AS Est_Annual_Savings_40Pct
+    ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)), 0)) * 365) * 0.30 AS Est_Annual_Savings_30Pct,
+    ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)), 0)) * 365) * 0.40 AS Est_Annual_Savings_40Pct
 
 FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
 
@@ -99,7 +99,7 @@ WHERE
     ChargeCategory = 'Usage'
     AND PricingCategory = 'Standard'
     AND CommitmentDiscountId IS NULL
-    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND BillingPeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
 
 GROUP BY
@@ -146,7 +146,7 @@ FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
 
 WHERE 
     ChargeCategory = 'Usage'
-    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND BillingPeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
 
 GROUP BY
@@ -176,8 +176,8 @@ SELECT
     RegionId,
     
     -- Usage consistency metrics
-    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysActive,
-    MIN(ChargePeriodStart) AS FirstUsage,
+    COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)) AS DaysActive,
+    MIN(BillingPeriodStart) AS FirstUsage,
     MAX(ChargePeriodEnd) AS LastUsage,
     
     -- Quantity metrics
@@ -191,10 +191,10 @@ SELECT
     
     -- Commitment recommendation flag (adjusted for 30-day window)
     CASE 
-        WHEN COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) >= 25  -- Used most days
+        WHEN COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)) >= 25  -- Used most days
             AND STDDEV(PricingQuantity) / NULLIF(AVG(PricingQuantity), 0) < 0.3  -- Low variability
         THEN 'Strong Candidate'
-        WHEN COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) >= 15
+        WHEN COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)) >= 15
         THEN 'Moderate Candidate'
         ELSE 'Review Usage Pattern'
     END AS CommitmentRecommendation
@@ -206,7 +206,7 @@ WHERE
     AND PricingCategory = 'Standard'
     AND CommitmentDiscountId IS NULL
     AND ResourceId IS NOT NULL
-    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND BillingPeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
 
 GROUP BY
