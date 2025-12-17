@@ -55,22 +55,88 @@ ORDER BY TotalSavingsRealized DESC;
 
 
 -- =============================================================================
--- Query 2: All Usage Analysis (regardless of commitment status)
--- Shows all usage with commitment coverage status
+-- Query 2: Commitment Coverage Percentage Summary
+-- Shows covered vs uncovered amounts as percentage of total usage
+-- =============================================================================
+SELECT
+    ProviderName,
+
+    -- Total usage
+    SUM(EffectiveCost) AS TotalEffectiveCost,
+    SUM(ListCost) AS TotalListCost,
+
+    -- Covered amounts
+    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
+    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN ListCost ELSE 0 END) AS CoveredListCost,
+
+    -- Uncovered amounts
+    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
+    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN ListCost ELSE 0 END) AS UncoveredListCost,
+
+    -- Coverage percentage (based on EffectiveCost)
+    CASE
+        WHEN SUM(EffectiveCost) > 0
+        THEN SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        ELSE 0
+    END AS CoverageRatePct,
+
+    -- Uncovered percentage
+    CASE
+        WHEN SUM(EffectiveCost) > 0
+        THEN SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        ELSE 0
+    END AS UncoveredRatePct,
+
+    -- Total savings from commitments
+    SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
+
+    -- Overall savings rate
+    CASE
+        WHEN SUM(ListCost) > 0
+        THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
+        ELSE 0
+    END AS OverallSavingsRatePct
+
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
+
+WHERE
+    ChargeCategory = 'Usage'
+    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
+
+GROUP BY
+    ProviderName
+
+ORDER BY TotalEffectiveCost DESC;
+
+
+-- =============================================================================
+-- Query 3: Commitment Coverage by Service
+-- Shows covered vs uncovered amounts by service
 -- =============================================================================
 SELECT
     ProviderName,
     ServiceCategory,
     ServiceName,
-    PricingCategory,
-    CASE
-        WHEN CommitmentDiscountId IS NOT NULL THEN 'Covered by Commitment'
-        ELSE 'Not Covered'
-    END AS CommitmentStatus,
 
-    -- Cost metrics
-    SUM(ListCost) AS TotalListCost,
+    -- Total usage
     SUM(EffectiveCost) AS TotalEffectiveCost,
+    SUM(ListCost) AS TotalListCost,
+
+    -- Covered amounts
+    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
+
+    -- Uncovered amounts
+    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
+
+    -- Coverage percentage
+    CASE
+        WHEN SUM(EffectiveCost) > 0
+        THEN SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        ELSE 0
+    END AS CoverageRatePct,
+
+    -- Savings from commitments
     SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
 
     -- Savings rate
@@ -80,9 +146,9 @@ SELECT
         ELSE 0
     END AS SavingsRatePct,
 
-    -- Volume
-    SUM(PricingQuantity) AS TotalPricingQuantity,
-    COUNT(DISTINCT ResourceId) AS UniqueResourceCount
+    -- Resource counts
+    COUNT(DISTINCT CASE WHEN CommitmentDiscountId IS NOT NULL THEN ResourceId END) AS CoveredResources,
+    COUNT(DISTINCT CASE WHEN CommitmentDiscountId IS NULL THEN ResourceId END) AS UncoveredResources
 
 FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
@@ -94,20 +160,15 @@ WHERE
 GROUP BY
     ProviderName,
     ServiceCategory,
-    ServiceName,
-    PricingCategory,
-    CASE
-        WHEN CommitmentDiscountId IS NOT NULL THEN 'Covered by Commitment'
-        ELSE 'Not Covered'
-    END
+    ServiceName
 
-HAVING SUM(ListCost) > 0
+HAVING SUM(EffectiveCost) > 0
 
-ORDER BY TotalListCost DESC;
+ORDER BY TotalEffectiveCost DESC;
 
 
 -- =============================================================================
--- Query 3: Commitment Coverage Rate by Service
+-- Query 4: Commitment Coverage Rate by Pricing Category
 -- Shows current coverage vs. opportunity across pricing categories
 -- =============================================================================
 SELECT
@@ -149,7 +210,7 @@ ORDER BY
 
 
 -- =============================================================================
--- Query 4: Commitment Utilization Analysis
+-- Query 5: Commitment Utilization Analysis
 -- Identifies underutilized commitments by looking at commitment discount usage
 -- =============================================================================
 SELECT
@@ -206,7 +267,7 @@ ORDER BY TotalSavings DESC;
 
 
 -- =============================================================================
--- Query 5: Commitment Savings Summary by Type
+-- Query 6: Commitment Savings Summary by Type
 -- High-level view of savings by commitment discount type
 -- =============================================================================
 SELECT
@@ -248,7 +309,7 @@ ORDER BY TotalSavings DESC;
 
 
 -- =============================================================================
--- Query 6: Daily Commitment Usage Trend
+-- Query 7: Daily Commitment Usage Trend
 -- Shows daily usage pattern to identify underutilization
 -- =============================================================================
 SELECT
