@@ -28,7 +28,7 @@ SELECT
     -- Count of unique resources that could be covered
     COUNT(DISTINCT ResourceId) AS UniqueResourceCount
 
-FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
 WHERE 
     -- Only look at usage charges (not purchases or taxes)
@@ -93,7 +93,7 @@ SELECT
     ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)), 0)) * 365) * 0.30 AS Est_Annual_Savings_30Pct,
     ((SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)), 0)) * 365) * 0.40 AS Est_Annual_Savings_40Pct
 
-FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
 WHERE 
     ChargeCategory = 'Usage'
@@ -142,7 +142,7 @@ SELECT
         ELSE 0 
     END AS SavingsRatePct
 
-FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
 WHERE 
     ChargeCategory = 'Usage'
@@ -199,7 +199,7 @@ SELECT
         ELSE 'Review Usage Pattern'
     END AS CommitmentRecommendation
 
-FROM `edav_dev_od_ocio_cbo`.`silver_af45`.`focus_monthly`
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
 WHERE 
     ChargeCategory = 'Usage'
