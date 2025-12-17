@@ -178,7 +178,7 @@ SELECT
     -- Usage consistency metrics
     COUNT(DISTINCT CAST(BillingPeriodStart AS DATE)) AS DaysActive,
     MIN(BillingPeriodStart) AS FirstUsage,
-    MAX(ChargePeriodEnd) AS LastUsage,
+    MAX(BillingPeriodEnd) AS LastUsage,
     
     -- Quantity metrics
     SUM(PricingQuantity) AS TotalQuantity,
