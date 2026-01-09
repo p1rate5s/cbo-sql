@@ -55,8 +55,9 @@ ORDER BY TotalSavingsRealized DESC;
 
 
 -- =============================================================================
--- Query 2: Commitment Coverage Percentage Summary
+-- Query 2: Commitment Coverage Percentage Summary (RI/Savings Plans Only)
 -- Shows covered vs uncovered amounts as percentage of total usage
+-- Excludes EA contracted pricing - only counts Reserved Instances and Savings Plans
 -- =============================================================================
 SELECT
     ProviderName,
@@ -65,25 +66,25 @@ SELECT
     SUM(EffectiveCost) AS TotalEffectiveCost,
     SUM(ListCost) AS TotalListCost,
 
-    -- Covered amounts
-    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
-    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN ListCost ELSE 0 END) AS CoveredListCost,
+    -- Covered by RI/Savings Plans (PricingCategory = 'Committed')
+    SUM(CASE WHEN PricingCategory = 'Committed' THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
+    SUM(CASE WHEN PricingCategory = 'Committed' THEN ListCost ELSE 0 END) AS CoveredListCost,
 
-    -- Uncovered amounts
-    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
-    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN ListCost ELSE 0 END) AS UncoveredListCost,
+    -- Uncovered amounts (Standard/On-Demand pricing)
+    SUM(CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
+    SUM(CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN ListCost ELSE 0 END) AS UncoveredListCost,
 
     -- Coverage percentage (based on EffectiveCost)
     CASE
         WHEN SUM(EffectiveCost) > 0
-        THEN SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        THEN SUM(CASE WHEN PricingCategory = 'Committed' THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
         ELSE 0
     END AS CoverageRatePct,
 
     -- Uncovered percentage
     CASE
         WHEN SUM(EffectiveCost) > 0
-        THEN SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        THEN SUM(CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
         ELSE 0
     END AS UncoveredRatePct,
 
@@ -111,8 +112,9 @@ ORDER BY TotalEffectiveCost DESC;
 
 
 -- =============================================================================
--- Query 3: Commitment Coverage by Service
+-- Query 3: Commitment Coverage by Service (RI/Savings Plans Only)
 -- Shows covered vs uncovered amounts by service
+-- Excludes EA contracted pricing - only counts Reserved Instances and Savings Plans
 -- =============================================================================
 SELECT
     ProviderName,
@@ -123,16 +125,16 @@ SELECT
     SUM(EffectiveCost) AS TotalEffectiveCost,
     SUM(ListCost) AS TotalListCost,
 
-    -- Covered amounts
-    SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
+    -- Covered by RI/Savings Plans (PricingCategory = 'Committed')
+    SUM(CASE WHEN PricingCategory = 'Committed' THEN EffectiveCost ELSE 0 END) AS CoveredEffectiveCost,
 
-    -- Uncovered amounts
-    SUM(CASE WHEN CommitmentDiscountId IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
+    -- Uncovered amounts (Standard/On-Demand pricing)
+    SUM(CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN EffectiveCost ELSE 0 END) AS UncoveredEffectiveCost,
 
     -- Coverage percentage
     CASE
         WHEN SUM(EffectiveCost) > 0
-        THEN SUM(CASE WHEN CommitmentDiscountId IS NOT NULL THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
+        THEN SUM(CASE WHEN PricingCategory = 'Committed' THEN EffectiveCost ELSE 0 END) * 100.0 / SUM(EffectiveCost)
         ELSE 0
     END AS CoverageRatePct,
 
@@ -147,8 +149,8 @@ SELECT
     END AS SavingsRatePct,
 
     -- Resource counts
-    COUNT(DISTINCT CASE WHEN CommitmentDiscountId IS NOT NULL THEN ResourceId END) AS CoveredResources,
-    COUNT(DISTINCT CASE WHEN CommitmentDiscountId IS NULL THEN ResourceId END) AS UncoveredResources
+    COUNT(DISTINCT CASE WHEN PricingCategory = 'Committed' THEN ResourceId END) AS CoveredResources,
+    COUNT(DISTINCT CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN ResourceId END) AS UncoveredResources
 
 FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
