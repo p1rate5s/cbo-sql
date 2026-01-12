@@ -494,7 +494,14 @@ SELECT
 
     -- Resource counts
     COUNT(DISTINCT CASE WHEN PricingCategory = 'Committed' THEN ResourceId END) AS CoveredResources,
-    COUNT(DISTINCT CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN ResourceId END) AS UncoveredResources
+    COUNT(DISTINCT CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN ResourceId END) AS UncoveredResources,
+
+    -- Resource coverage percentage
+    CASE
+        WHEN COUNT(DISTINCT ResourceId) > 0
+        THEN COUNT(DISTINCT CASE WHEN PricingCategory = 'Committed' THEN ResourceId END) * 100.0 / COUNT(DISTINCT ResourceId)
+        ELSE 0
+    END AS ResourceCovPct
 
 FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
