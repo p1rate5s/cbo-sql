@@ -96,7 +96,11 @@ SELECT
         WHEN SUM(ListCost) > 0
         THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
         ELSE 0
-    END AS OverallSavingsRatePct
+    END AS OverallSavingsRatePct,
+
+    -- Resource counts
+    COUNT(DISTINCT CASE WHEN PricingCategory = 'Committed' THEN ResourceId END) AS CoveredResources,
+    COUNT(DISTINCT CASE WHEN PricingCategory != 'Committed' OR PricingCategory IS NULL THEN ResourceId END) AS UncoveredResources
 
 FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
@@ -399,3 +403,53 @@ GROUP BY
 HAVING SUM(EffectiveCost) > 0
 
 ORDER BY Total3MonthEffectiveCost DESC;
+
+
+-- =============================================================================
+-- Query 9: Active Commitments Since 10/1/2024 with Savings
+-- Lists all commitments active since October 1, 2024 and their savings
+-- =============================================================================
+SELECT
+    ProviderName,
+    CommitmentDiscountId,
+    CommitmentDiscountName,
+    CommitmentDiscountType,
+
+    -- Commitment start date (first usage date as proxy)
+    MIN(ChargePeriodStart) AS CommitmentStartDate,
+
+    -- Cost metrics
+    SUM(ListCost) AS TotalListCost,
+    SUM(EffectiveCost) AS TotalEffectiveCost,
+    SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
+
+    -- Savings rate
+    CASE
+        WHEN SUM(ListCost) > 0
+        THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
+        ELSE 0
+    END AS SavingsRatePct,
+
+    -- Coverage metrics
+    COUNT(DISTINCT ServiceName) AS ServicesWithCommitments,
+    COUNT(DISTINCT ResourceId) AS UniqueResourcesCovered,
+
+    -- Usage period
+    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysUsed,
+    MAX(ChargePeriodEnd) AS LastUsageDate
+
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
+
+WHERE
+    ChargeCategory = 'Usage'
+    AND CommitmentDiscountId IS NOT NULL
+    AND ChargePeriodStart >= '2024-10-01'
+    AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
+
+GROUP BY
+    ProviderName,
+    CommitmentDiscountId,
+    CommitmentDiscountName,
+    CommitmentDiscountType
+
+ORDER BY TotalSavings DESC;
