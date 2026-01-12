@@ -406,8 +406,8 @@ ORDER BY Total3MonthEffectiveCost DESC;
 
 
 -- =============================================================================
--- Query 9: Active Commitments Since 10/1/2024 with Savings
--- Lists all commitments active since October 1, 2024 and their savings
+-- Query 9: Active Commitments Since 10/1/2025 with Savings
+-- Lists all commitments active since October 1, 2025 and their savings
 -- =============================================================================
 SELECT
     ProviderName,
@@ -443,7 +443,7 @@ FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 WHERE
     ChargeCategory = 'Usage'
     AND CommitmentDiscountId IS NOT NULL
-    AND ChargePeriodStart >= '2024-10-01'
+    AND ChargePeriodStart >= '2025-10-01'
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
 
 GROUP BY
