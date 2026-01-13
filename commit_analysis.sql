@@ -790,3 +790,57 @@ GROUP BY
 HAVING COUNT(DISTINCT ResourceId) > 0
 
 ORDER BY SubAccountName, ResourcesWithAHUB DESC, TotalEffectiveCost DESC;
+
+
+-- =============================================================================
+-- Query 14: Azure Hybrid Benefit Detail Records
+-- Lists all detail records for services using Azure Hybrid Benefit (AHUB)
+-- =============================================================================
+SELECT
+    ProviderName,
+    SubAccountId,
+    SubAccountName,
+    ServiceCategory,
+    ServiceName,
+    ResourceId,
+    ResourceName,
+    RegionId,
+    RegionName,
+    SkuId,
+    SkuPriceId,
+    PricingCategory,
+    ChargeDescription,
+    ChargePeriodStart,
+    ChargePeriodEnd,
+    PricingQuantity,
+    PricingUnit,
+    UsageQuantity,
+    UsageUnit,
+    ListUnitPrice,
+    ListCost,
+    EffectiveCost,
+    ListCost - EffectiveCost AS Savings,
+    Tags
+
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
+
+WHERE
+    ChargeCategory = 'Usage'
+    -- Filter for Azure Hybrid Benefit
+    AND (
+        -- Check for AHUB in pricing or tags
+        LOWER(SkuPriceId) LIKE '%ahub%'
+        OR LOWER(SkuPriceId) LIKE '%hybrid%benefit%'
+        OR LOWER(PricingCategory) LIKE '%hybrid%'
+        OR LOWER(CommitmentDiscountType) LIKE '%hybrid%'
+        -- Check common tag names for AHUB
+        OR LOWER(Tags) LIKE '%hybridbenefit%'
+        OR LOWER(Tags) LIKE '%ahub%'
+        -- Check resource name patterns (common for AHUB-enabled resources)
+        OR LOWER(ChargeDescription) LIKE '%hybrid benefit%'
+        OR LOWER(ChargeDescription) LIKE '%ahub%'
+    )
+    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
+
+ORDER BY SubAccountName, ServiceName, ResourceName, ChargePeriodStart;
