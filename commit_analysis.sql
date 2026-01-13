@@ -608,3 +608,56 @@ GROUP BY
 HAVING SUM(EffectiveCost) > 0
 
 ORDER BY TotalEffectiveCost DESC;
+
+
+-- =============================================================================
+-- Query 11: Commitment Savings (Usage Only - Excludes Purchases)
+-- Shows savings from commitments excluding the commitment purchase costs
+-- Only counts usage charges, not the upfront or recurring commitment fees
+-- =============================================================================
+SELECT
+    ProviderName,
+    CommitmentDiscountType,
+
+    -- Count of commitments
+    COUNT(DISTINCT CommitmentDiscountId) AS TotalCommitments,
+
+    -- Cost metrics (usage only, no purchases)
+    SUM(ListCost) AS TotalListCost,
+    SUM(EffectiveCost) AS TotalEffectiveCost,
+    SUM(ListCost) - SUM(EffectiveCost) AS TotalUsageSavings,
+
+    -- Savings rate on usage
+    CASE
+        WHEN SUM(ListCost) > 0
+        THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
+        ELSE 0
+    END AS UsageSavingsRatePct,
+
+    -- Coverage
+    COUNT(DISTINCT ServiceName) AS ServicesWithCommitments,
+    COUNT(DISTINCT ResourceId) AS UniqueResourcesCovered,
+
+    -- Usage volume
+    SUM(PricingQuantity) AS TotalPricingQuantity,
+    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysWithUsage
+
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
+
+WHERE
+    -- Only usage charges - explicitly exclude purchases
+    ChargeCategory = 'Usage'
+    -- Exclude any purchase-related charge types
+    AND (ChargeSubcategory IS NULL OR ChargeSubcategory NOT IN ('Purchase', 'Refund'))
+    -- Must have commitment discount applied
+    AND CommitmentDiscountId IS NOT NULL
+    -- Time filter
+    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    -- Exclude corrections
+    AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
+
+GROUP BY
+    ProviderName,
+    CommitmentDiscountType
+
+ORDER BY TotalUsageSavings DESC;
