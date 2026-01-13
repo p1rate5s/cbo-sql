@@ -814,8 +814,6 @@ SELECT
     ChargePeriodEnd,
     PricingQuantity,
     PricingUnit,
-    UsageQuantity,
-    UsageUnit,
     ListUnitPrice,
     ListCost,
     EffectiveCost,
@@ -828,8 +826,11 @@ WHERE
     ChargeCategory = 'Usage'
     -- Filter for Azure Hybrid Benefit
     AND (
+        -- Check for AHUB in SKU details
+        LOWER(x_SkuDetails) LIKE '%ahub%'
+        OR LOWER(x_SkuDetails) LIKE '%hybrid%benefit%'
         -- Check for AHUB in pricing or tags
-        LOWER(SkuPriceId) LIKE '%ahub%'
+        OR LOWER(SkuPriceId) LIKE '%ahub%'
         OR LOWER(SkuPriceId) LIKE '%hybrid%benefit%'
         OR LOWER(PricingCategory) LIKE '%hybrid%'
         OR LOWER(CommitmentDiscountType) LIKE '%hybrid%'
