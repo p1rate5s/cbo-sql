@@ -724,3 +724,69 @@ GROUP BY
 HAVING COUNT(DISTINCT ResourceId) > 0
 
 ORDER BY ResourcesWithAHUB DESC, TotalEffectiveCost DESC;
+
+
+-- =============================================================================
+-- Query 13: Azure Hybrid Benefit Usage by Subscription and Service Type
+-- Counts services and resources using Azure Hybrid Benefit (AHUB)
+-- Grouped by SubAccountName (subscription) and ServiceCategory (service type)
+-- =============================================================================
+SELECT
+    ProviderName,
+    SubAccountId,
+    SubAccountName,
+    ServiceCategory,
+
+    -- Count of services and resources using Hybrid Benefit
+    COUNT(DISTINCT ServiceName) AS ServicesWithAHUB,
+    COUNT(DISTINCT ResourceId) AS ResourcesWithAHUB,
+
+    -- Total usage records with AHUB
+    COUNT(*) AS TotalAHUBRecords,
+
+    -- Cost metrics
+    SUM(EffectiveCost) AS TotalEffectiveCost,
+    SUM(ListCost) AS TotalListCost,
+    SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
+
+    -- Savings rate from AHUB
+    CASE
+        WHEN SUM(ListCost) > 0
+        THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
+        ELSE 0
+    END AS AHUBSavingsRatePct,
+
+    -- Usage volume
+    SUM(PricingQuantity) AS TotalPricingQuantity,
+    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysWithUsage
+
+FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
+
+WHERE
+    ChargeCategory = 'Usage'
+    -- Filter for Azure Hybrid Benefit
+    AND (
+        -- Check for AHUB in pricing or tags
+        LOWER(SkuPriceId) LIKE '%ahub%'
+        OR LOWER(SkuPriceId) LIKE '%hybrid%benefit%'
+        OR LOWER(PricingCategory) LIKE '%hybrid%'
+        OR LOWER(CommitmentDiscountType) LIKE '%hybrid%'
+        -- Check common tag names for AHUB
+        OR LOWER(Tags) LIKE '%hybridbenefit%'
+        OR LOWER(Tags) LIKE '%ahub%'
+        -- Check resource name patterns (common for AHUB-enabled resources)
+        OR LOWER(ChargeDescription) LIKE '%hybrid benefit%'
+        OR LOWER(ChargeDescription) LIKE '%ahub%'
+    )
+    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
+
+GROUP BY
+    ProviderName,
+    SubAccountId,
+    SubAccountName,
+    ServiceCategory
+
+HAVING COUNT(DISTINCT ResourceId) > 0
+
+ORDER BY SubAccountName, ResourcesWithAHUB DESC, TotalEffectiveCost DESC;
