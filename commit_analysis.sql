@@ -611,16 +611,20 @@ ORDER BY TotalEffectiveCost DESC;
 
 
 -- =============================================================================
--- Query 11: Commitment Savings (Usage Only - Excludes Purchases)
--- Shows savings from commitments excluding the commitment purchase costs
+-- Query 11: Commitment Savings Details (Usage Only - Excludes Purchases)
+-- Shows savings from each individual commitment excluding purchase costs
 -- Only counts usage charges, not the upfront or recurring commitment fees
+-- Includes all commitments active since 10/1/2025
 -- =============================================================================
 SELECT
     ProviderName,
+    CommitmentDiscountId,
+    CommitmentDiscountName,
     CommitmentDiscountType,
 
-    -- Count of commitments
-    COUNT(DISTINCT CommitmentDiscountId) AS TotalCommitments,
+    -- Commitment usage period
+    MIN(ChargePeriodStart) AS FirstUsageDate,
+    MAX(ChargePeriodEnd) AS LastUsageDate,
 
     -- Cost metrics (usage only, no purchases)
     SUM(ListCost) AS TotalListCost,
@@ -635,7 +639,7 @@ SELECT
     END AS UsageSavingsRatePct,
 
     -- Coverage
-    COUNT(DISTINCT ServiceName) AS ServicesWithCommitments,
+    COUNT(DISTINCT ServiceName) AS ServicesWithCommitment,
     COUNT(DISTINCT ResourceId) AS UniqueResourcesCovered,
 
     -- Usage volume
@@ -651,13 +655,15 @@ WHERE
     AND (ChargeSubcategory IS NULL OR ChargeSubcategory NOT IN ('Purchase', 'Refund'))
     -- Must have commitment discount applied
     AND CommitmentDiscountId IS NOT NULL
-    -- Time filter
-    AND ChargePeriodStart >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+    -- Include all commitments active since 10/1/2025
+    AND ChargePeriodStart >= '2025-10-01'
     -- Exclude corrections
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
 
 GROUP BY
     ProviderName,
+    CommitmentDiscountId,
+    CommitmentDiscountName,
     CommitmentDiscountType
 
 ORDER BY TotalUsageSavings DESC;
