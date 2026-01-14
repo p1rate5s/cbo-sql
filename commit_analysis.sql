@@ -611,9 +611,8 @@ ORDER BY TotalEffectiveCost DESC;
 
 
 -- =============================================================================
--- Query 11: Commitment Savings Details (Usage Only - Excludes Purchases)
--- Shows savings from each individual commitment excluding purchase costs
--- Only counts usage charges, not the upfront or recurring commitment fees
+-- Query 11: Commitment Savings Details (All Charge Types)
+-- Shows savings from each individual commitment including all charge types
 -- Includes all commitments active since 10/1/2025
 -- =============================================================================
 SELECT
@@ -626,17 +625,17 @@ SELECT
     MIN(ChargePeriodStart) AS FirstUsageDate,
     MAX(ChargePeriodEnd) AS LastUsageDate,
 
-    -- Cost metrics (usage only, no purchases)
+    -- Cost metrics (all charge types)
     SUM(ListCost) AS TotalListCost,
     SUM(EffectiveCost) AS TotalEffectiveCost,
-    SUM(ListCost) - SUM(EffectiveCost) AS TotalUsageSavings,
+    SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
 
-    -- Savings rate on usage
+    -- Savings rate
     CASE
         WHEN SUM(ListCost) > 0
         THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
         ELSE 0
-    END AS UsageSavingsRatePct,
+    END AS SavingsRatePct,
 
     -- Coverage
     COUNT(DISTINCT ServiceName) AS ServicesWithCommitment,
@@ -649,12 +648,8 @@ SELECT
 FROM `edav_dev_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
 WHERE
-    -- Only usage charges - explicitly exclude purchases
-    ChargeCategory = 'Usage'
-    -- Exclude any purchase-related charge types
-    AND (ChargeSubcategory IS NULL OR ChargeSubcategory NOT IN ('Purchase', 'Refund'))
     -- Must have commitment discount applied
-    AND CommitmentDiscountId IS NOT NULL
+    CommitmentDiscountId IS NOT NULL
     -- Include all commitments active since 10/1/2025
     AND ChargePeriodStart >= '2025-10-01'
     -- Exclude corrections
