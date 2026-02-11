@@ -1013,7 +1013,6 @@ FROM `edav_prd_od_ocio_cbo`.`bronze`.`azure_focus_base`
 WHERE
     ChargeCategory = 'Usage'
     -- Only uncovered usage (not already under commitment)
-    AND (PricingCategory != 'Committed' OR PricingCategory IS NULL)
     AND CommitmentDiscountId IS NULL
     -- Since 10/1/2025
     AND ChargePeriodStart >= '2025-10-01'
