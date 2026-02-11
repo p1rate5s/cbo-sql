@@ -408,6 +408,7 @@ ORDER BY Total3MonthEffectiveCost DESC;
 -- =============================================================================
 -- Query 9: Active Commitments Since 10/1/2025 with Savings
 -- Lists all commitments active since October 1, 2025 and their savings
+-- Uses ContractedCost instead of ListCost for savings calculation
 -- =============================================================================
 SELECT
     ProviderName,
@@ -419,14 +420,14 @@ SELECT
     MIN(ChargePeriodStart) AS CommitmentStartDate,
 
     -- Cost metrics
-    SUM(ListCost) AS TotalListCost,
+    SUM(ContractedCost) AS TotalContractedCost,
     SUM(EffectiveCost) AS TotalEffectiveCost,
-    SUM(ListCost) - SUM(EffectiveCost) AS TotalSavings,
+    SUM(ContractedCost) - SUM(EffectiveCost) AS TotalSavings,
 
     -- Savings rate
     CASE
-        WHEN SUM(ListCost) > 0
-        THEN (SUM(ListCost) - SUM(EffectiveCost)) * 100.0 / SUM(ListCost)
+        WHEN SUM(ContractedCost) > 0
+        THEN (SUM(ContractedCost) - SUM(EffectiveCost)) * 100.0 / SUM(ContractedCost)
         ELSE 0
     END AS SavingsRatePct,
 
