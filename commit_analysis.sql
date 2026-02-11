@@ -975,7 +975,7 @@ GROUP BY
     CommitmentDiscountName,
     CommitmentDiscountType
 
-ORDER BY TotalUsageSavings DESC;
+ORDER BY TotalSavings DESC;
 
 
 -- =============================================================================
