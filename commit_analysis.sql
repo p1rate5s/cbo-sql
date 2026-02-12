@@ -993,13 +993,13 @@ SELECT
     -- Current spend (uncovered/on-demand)
     SUM(EffectiveCost) AS TotalUncoveredCost,
     SUM(ListCost) AS TotalListCost,
+    SUM(ContractedCost) AS TotalContractedCost,
 
     -- Estimated savings potential (assuming 25% typical RI/SP discount)
     SUM(EffectiveCost) * 0.25 AS EstimatedSavings25Pct,
     SUM(EffectiveCost) * 0.30 AS EstimatedSavings30Pct,
 
-    -- Resource metrics
-    COUNT(DISTINCT ResourceId) AS UniqueResources,
+    -- Usage volume
     SUM(PricingQuantity) AS TotalPricingQuantity,
 
     -- Usage consistency (important for commitment ROI)
@@ -1013,7 +1013,7 @@ FROM `edav_prd_od_ocio_cbo`.`bronze`.`azure_focus_base`
 WHERE
     ChargeCategory = 'Usage'
     -- Only uncovered usage (not already under commitment)
-    AND CommitmentDiscountId IS NULL
+    AND CommitmentDiscountName IS NULL
     -- Since 10/1/2025
     AND ChargePeriodStart >= '2025-10-01'
     AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
