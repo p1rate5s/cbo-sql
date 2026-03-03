@@ -23,7 +23,13 @@ SELECT
 
     -- Usage volume
     SUM(PricingQuantity) AS TotalPricingQuantity,
-    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysWithUsage
+    COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) AS DaysWithUsage,
+
+    -- Average hourly cost
+    SUM(EffectiveCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) * 24, 0) AS AvgHourlyCost,
+
+    -- Average daily cost
+    SUM(EffectiveCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)), 0) AS AvgDailyCost
 
 FROM `edav_prd_od_ocio_cbo`.`bronze`.`azure_focus_base`
 
