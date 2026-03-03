@@ -138,4 +138,4 @@ GROUP BY
 
 HAVING SUM(EffectiveCost) > 0
 
-ORDER BY EffectiveCostPerHour DESC;
+ORDER BY TotalUncoveredCost DESC;
