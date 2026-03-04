@@ -16,7 +16,7 @@ SELECT
     SUM(ContractedCost) AS TotalContractedCost,
 
     -- Hourly cost (total cost / total hours in period)
-    SUM(EffectiveCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) * 24, 0) AS EffectiveCostPerHour,
+    SUM(EffectiveCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) * 24, 0) AS UncoveredCostPerHour,
     SUM(ListCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) * 24, 0) AS ListCostPerHour,
     SUM(ContractedCost) / NULLIF(COUNT(DISTINCT CAST(ChargePeriodStart AS DATE)) * 24, 0) AS ContractedCostPerHour,
 
