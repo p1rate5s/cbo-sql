@@ -1,7 +1,7 @@
 -- =============================================================================
--- Query 15: Savings Plan Sizing Analysis
--- Determines how large of a savings plan ($/hour commitment) to purchase
--- by analyzing the distribution of eligible spend.
+-- Query 15: Compute Savings Plan Sizing Analysis
+-- Determines how large of a compute savings plan ($/hour commitment) to purchase
+-- by analyzing the distribution of compute eligible spend.
 --
 -- NOTE: FOCUS data has daily granularity (ChargePeriodStart is per-day).
 -- Daily percentiles show actual daily spend distribution.
@@ -40,93 +40,12 @@ WITH daily_spend AS (
         ChargeCategory = 'Usage'
         AND ChargePeriodStart >= '2025-10-01'
         AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
-        AND (
-            ServiceName IN (
-                'Virtual Machines',
-                'Azure Dedicated Host',
-                'Azure Functions',
-                'Azure Container Instances',
-                'Azure Container Apps',
-                'Azure Kubernetes Service',
-                'Azure Batch',
-                'Azure Spring Apps',
-                'Azure Virtual Desktop',
-                'Azure VMware Solution'
-            )
-            OR ServiceName IN (
-                'Azure SQL Database',
-                'Azure SQL Managed Instance',
-                'SQL Database',
-                'SQL Managed Instance',
-                'Azure Cosmos DB',
-                'Cosmos DB',
-                'Azure Database for MySQL',
-                'Azure Database for PostgreSQL',
-                'Azure Database for MariaDB',
-                'Azure Cache for Redis'
-            )
-            OR ServiceName IN (
-                'Azure Synapse Analytics',
-                'Synapse Analytics',
-                'Azure Databricks',
-                'Databricks',
-                'Azure Data Explorer',
-                'Azure Data Factory',
-                'Microsoft Fabric',
-                'Power BI Embedded'
-            )
-            OR ServiceName IN (
-                'Azure Blob Storage',
-                'Storage',
-                'Blob Storage',
-                'Azure Files',
-                'Azure Disk Storage',
-                'Managed Disks',
-                'Azure Backup',
-                'Azure NetApp Files'
-            )
-            OR ServiceName IN (
-                'Azure App Service',
-                'App Service',
-                'App Service Environment'
-            )
-            OR ServiceName IN (
-                'Azure OpenAI Service',
-                'Azure OpenAI',
-                'OpenAI Service',
-                'Azure AI Foundry',
-                'Azure Machine Learning'
-            )
-            OR ServiceName IN (
-                'Microsoft Defender for Cloud',
-                'Microsoft Sentinel',
-                'Azure Sentinel'
-            )
-            OR ServiceName IN (
-                'Azure Virtual WAN',
-                'Virtual WAN',
-                'Azure ExpressRoute',
-                'ExpressRoute'
-            )
-            OR ServiceName IN (
-                'Azure SignalR Service',
-                'SignalR Service'
-            )
-            OR ServiceCategory IN (
-                'Compute',
-                'Databases',
-                'Analytics',
-                'AI and Machine Learning'
-            )
-        )
+        AND ServiceCategory = 'Compute'
     GROUP BY
-        CAST(ChargePeriodStart AS DATE),
-        ServiceCategory
+        CAST(ChargePeriodStart AS DATE)
 )
 
 SELECT
-    ServiceCategory,
-
     -- Days observed
     COUNT(*) AS TotalDays,
 
@@ -190,8 +109,4 @@ SELECT
     percentile_approx(daily_uncovered_effective, 0.25) / 24 * 8760 AS Uncovered_P25_AnnualCommitment,
     percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 AS Uncovered_P50_AnnualCommitment
 
-FROM daily_spend
-
-GROUP BY ServiceCategory
-
-ORDER BY Total_EffectiveCost DESC;
+FROM daily_spend;
