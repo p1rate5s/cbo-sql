@@ -1,29 +1,38 @@
 -- =============================================================================
 -- Query 15: Savings Plan Sizing Analysis
 -- Determines how large of a savings plan ($/hour commitment) to purchase
--- by analyzing the distribution of hourly on-demand eligible spend.
+-- by analyzing the distribution of hourly eligible spend.
+--
+-- Shows BOTH total eligible spend and uncovered-only spend side by side:
+--   - Total = all eligible usage (covered + uncovered) — full baseline demand
+--   - Uncovered = only on-demand usage not under a commitment
 --
 -- How to read the results:
---   - P10_HourlySpend = very conservative commitment (covers 90% of hours)
---   - P25_HourlySpend = conservative commitment (covers 75% of hours)
---   - P50_HourlySpend = moderate commitment (covers 50% of hours)
---   - P75_HourlySpend = aggressive commitment (covers 25% of hours)
---   - MinHourlySpend  = safest floor (never overpays)
+--   - P10 = very conservative commitment (covers 90% of hours)
+--   - P25 = conservative commitment (covers 75% of hours)
+--   - P50 = moderate commitment (covers 50% of hours)
+--   - P75 = aggressive commitment (covers 25% of hours)
+--   - Min = safest floor (never overpays)
 --
 -- A savings plan is a fixed $/hour commitment. Choose a percentile that
 -- matches your risk tolerance. Hours above the commitment pay on-demand.
+-- Lookback: Since 10/1/2025
 -- =============================================================================
 WITH hourly_spend AS (
     SELECT
         DATE_TRUNC('hour', ChargePeriodStart) AS usage_hour,
         ServiceCategory,
-        SUM(ContractedCost) AS hourly_contracted_cost,
-        SUM(EffectiveCost) AS hourly_effective_cost,
-        SUM(ListCost) AS hourly_list_cost
+        -- Total eligible spend (covered + uncovered)
+        SUM(EffectiveCost) AS hourly_total_effective,
+        SUM(ListCost) AS hourly_total_list,
+        SUM(ContractedCost) AS hourly_total_contracted,
+        -- Uncovered spend only
+        SUM(CASE WHEN CommitmentDiscountName IS NULL THEN EffectiveCost ELSE 0 END) AS hourly_uncovered_effective,
+        SUM(CASE WHEN CommitmentDiscountName IS NULL THEN ListCost ELSE 0 END) AS hourly_uncovered_list,
+        SUM(CASE WHEN CommitmentDiscountName IS NULL THEN ContractedCost ELSE 0 END) AS hourly_uncovered_contracted
     FROM `edav_prd_od_ocio_cbo`.`bronze`.`azure_focus_base`
     WHERE
         ChargeCategory = 'Usage'
-        AND CommitmentDiscountName IS NULL
         AND ChargePeriodStart >= '2025-10-01'
         AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
         AND (
@@ -116,28 +125,48 @@ SELECT
     -- Total hours observed
     COUNT(*) AS TotalHours,
 
-    -- Spend distribution (use these to size your savings plan)
-    MIN(hourly_effective_cost) AS MinHourlySpend,
-    percentile_approx(hourly_effective_cost, 0.10) AS P10_HourlySpend,
-    percentile_approx(hourly_effective_cost, 0.25) AS P25_HourlySpend,
-    percentile_approx(hourly_effective_cost, 0.50) AS P50_HourlySpend,
-    percentile_approx(hourly_effective_cost, 0.75) AS P75_HourlySpend,
-    percentile_approx(hourly_effective_cost, 0.90) AS P90_HourlySpend,
-    MAX(hourly_effective_cost) AS MaxHourlySpend,
-    AVG(hourly_effective_cost) AS AvgHourlySpend,
+    -- === TOTAL ELIGIBLE SPEND (covered + uncovered) ===
+    -- Hourly distribution - total
+    MIN(hourly_total_effective) AS Total_MinHourly,
+    percentile_approx(hourly_total_effective, 0.10) AS Total_P10_Hourly,
+    percentile_approx(hourly_total_effective, 0.25) AS Total_P25_Hourly,
+    percentile_approx(hourly_total_effective, 0.50) AS Total_P50_Hourly,
+    percentile_approx(hourly_total_effective, 0.75) AS Total_P75_Hourly,
+    percentile_approx(hourly_total_effective, 0.90) AS Total_P90_Hourly,
+    MAX(hourly_total_effective) AS Total_MaxHourly,
+    AVG(hourly_total_effective) AS Total_AvgHourly,
 
-    -- Total spend in period
-    SUM(hourly_effective_cost) AS TotalEffectiveCost,
-    SUM(hourly_list_cost) AS TotalListCost,
-    SUM(hourly_contracted_cost) AS TotalContractedCost,
+    -- Period totals - total
+    SUM(hourly_total_effective) AS Total_EffectiveCost,
+    SUM(hourly_total_list) AS Total_ListCost,
+    SUM(hourly_total_contracted) AS Total_ContractedCost,
 
-    -- Estimated annual commitment cost at each percentile ($/hr * 8760 hrs/yr)
-    percentile_approx(hourly_effective_cost, 0.10) * 8760 AS P10_AnnualCommitment,
-    percentile_approx(hourly_effective_cost, 0.25) * 8760 AS P25_AnnualCommitment,
-    percentile_approx(hourly_effective_cost, 0.50) * 8760 AS P50_AnnualCommitment
+    -- === UNCOVERED SPEND ONLY ===
+    -- Hourly distribution - uncovered
+    MIN(hourly_uncovered_effective) AS Uncovered_MinHourly,
+    percentile_approx(hourly_uncovered_effective, 0.10) AS Uncovered_P10_Hourly,
+    percentile_approx(hourly_uncovered_effective, 0.25) AS Uncovered_P25_Hourly,
+    percentile_approx(hourly_uncovered_effective, 0.50) AS Uncovered_P50_Hourly,
+    percentile_approx(hourly_uncovered_effective, 0.75) AS Uncovered_P75_Hourly,
+    percentile_approx(hourly_uncovered_effective, 0.90) AS Uncovered_P90_Hourly,
+    MAX(hourly_uncovered_effective) AS Uncovered_MaxHourly,
+    AVG(hourly_uncovered_effective) AS Uncovered_AvgHourly,
+
+    -- Period totals - uncovered
+    SUM(hourly_uncovered_effective) AS Uncovered_EffectiveCost,
+    SUM(hourly_uncovered_list) AS Uncovered_ListCost,
+    SUM(hourly_uncovered_contracted) AS Uncovered_ContractedCost,
+
+    -- === ESTIMATED ANNUAL COMMITMENT ($/hr * 8760 hrs/yr) ===
+    -- Based on total spend
+    percentile_approx(hourly_total_effective, 0.25) * 8760 AS Total_P25_AnnualCommitment,
+    percentile_approx(hourly_total_effective, 0.50) * 8760 AS Total_P50_AnnualCommitment,
+    -- Based on uncovered spend
+    percentile_approx(hourly_uncovered_effective, 0.25) * 8760 AS Uncovered_P25_AnnualCommitment,
+    percentile_approx(hourly_uncovered_effective, 0.50) * 8760 AS Uncovered_P50_AnnualCommitment
 
 FROM hourly_spend
 
 GROUP BY ServiceCategory
 
-ORDER BY TotalEffectiveCost DESC;
+ORDER BY Total_EffectiveCost DESC;
