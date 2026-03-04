@@ -152,9 +152,18 @@ SELECT
     -- Based on total spend
     percentile_approx(daily_total_effective, 0.25) / 24 * 8760 AS Total_P25_AnnualCommitment,
     percentile_approx(daily_total_effective, 0.50) / 24 * 8760 AS Total_P50_AnnualCommitment,
+    percentile_approx(daily_total_effective, 0.90) / 24 * 8760 AS Total_P90_AnnualCommitment,
     -- Based on uncovered spend
     percentile_approx(daily_uncovered_effective, 0.25) / 24 * 8760 AS Uncovered_P25_AnnualCommitment,
-    percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 AS Uncovered_P50_AnnualCommitment
+    percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 AS Uncovered_P50_AnnualCommitment,
+
+    -- === ESTIMATED ANNUAL SAVINGS (assuming 25% discount on committed spend) ===
+    -- Annualized current spend (period total / days * 365)
+    SUM(daily_total_effective) / COUNT(*) * 365 AS Total_AnnualizedSpend,
+    SUM(daily_uncovered_effective) / COUNT(*) * 365 AS Uncovered_AnnualizedSpend,
+    -- Estimated savings at P50 commitment level (25% of committed portion)
+    percentile_approx(daily_total_effective, 0.50) / 24 * 8760 * 0.25 AS Total_P50_EstimatedAnnualSavings,
+    percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 * 0.25 AS Uncovered_P50_EstimatedAnnualSavings
 
 FROM combined
 
