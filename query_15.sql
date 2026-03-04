@@ -39,7 +39,27 @@ WITH daily_spend AS (
         ChargeCategory = 'Usage'
         AND ChargePeriodStart >= '2025-10-01'
         AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
-        AND ServiceCategory = 'Compute'
+        -- Compute services eligible for Azure Compute Savings Plans
+        AND (
+            ServiceName IN (
+                'Virtual Machines',
+                'Azure Dedicated Host',
+                'Azure Functions',
+                'Azure Container Instances',
+                'Azure Container Apps',
+                'Azure Kubernetes Service',
+                'Azure Batch',
+                'Azure Spring Apps',
+                'Azure Virtual Desktop',
+                'Azure VMware Solution'
+            )
+            OR ServiceName IN (
+                'Azure App Service',
+                'App Service',
+                'App Service Environment'
+            )
+            OR ServiceCategory = 'Compute'
+        )
     GROUP BY
         CAST(ChargePeriodStart AS DATE)
 )
