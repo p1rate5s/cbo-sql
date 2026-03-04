@@ -26,7 +26,6 @@
 WITH daily_spend AS (
     SELECT
         CAST(ChargePeriodStart AS DATE) AS usage_day,
-        ServiceCategory,
         -- Total eligible spend (covered + uncovered)
         SUM(EffectiveCost) AS daily_total_effective,
         SUM(ListCost) AS daily_total_list,
