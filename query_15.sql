@@ -11,8 +11,6 @@
 --   - Total = all eligible usage (covered + uncovered) — full baseline demand
 --   - Uncovered = only on-demand usage not under a commitment
 --
--- Results grouped by ServiceName, with 'ALL SERVICES' totals at the bottom.
---
 -- How to read the results:
 --   - P10 = very conservative commitment (covers 90% of days)
 --   - P25 = conservative commitment (covers 75% of days)
@@ -23,12 +21,11 @@
 -- A savings plan is a fixed $/hour commitment. Use the Hourly columns
 -- to size the commitment. Choose a percentile that matches your risk
 -- tolerance. Hours above the commitment pay on-demand.
--- Lookback: Since 10/1/2025
+-- Lookback: Since 3/1/2025 (full year)
 -- =============================================================================
 WITH daily_spend AS (
     SELECT
         CAST(ChargePeriodStart AS DATE) AS usage_day,
-        ServiceName,
         -- Total eligible spend (covered + uncovered)
         SUM(EffectiveCost) AS daily_total_effective,
         SUM(ListCost) AS daily_total_list,
@@ -40,7 +37,7 @@ WITH daily_spend AS (
     FROM `edav_prd_od_ocio_cbo`.`bronze`.`azure_focus_base`
     WHERE
         ChargeCategory = 'Usage'
-        AND ChargePeriodStart >= '2025-10-01'
+        AND ChargePeriodStart >= '2025-03-01'
         AND (ChargeClass IS NULL OR ChargeClass != 'Correction')
         -- Compute services eligible for Azure Compute Savings Plans
         AND (
@@ -64,35 +61,10 @@ WITH daily_spend AS (
             OR ServiceCategory = 'Compute'
         )
     GROUP BY
-        CAST(ChargePeriodStart AS DATE),
-        ServiceName
-),
-
--- Aggregate daily totals across all services for the 'ALL SERVICES' row
-daily_spend_all AS (
-    SELECT
-        usage_day,
-        'ALL SERVICES' AS ServiceName,
-        SUM(daily_total_effective) AS daily_total_effective,
-        SUM(daily_total_list) AS daily_total_list,
-        SUM(daily_total_contracted) AS daily_total_contracted,
-        SUM(daily_uncovered_effective) AS daily_uncovered_effective,
-        SUM(daily_uncovered_list) AS daily_uncovered_list,
-        SUM(daily_uncovered_contracted) AS daily_uncovered_contracted
-    FROM daily_spend
-    GROUP BY usage_day
-),
-
--- Combine per-service and all-services
-combined AS (
-    SELECT * FROM daily_spend
-    UNION ALL
-    SELECT * FROM daily_spend_all
+        CAST(ChargePeriodStart AS DATE)
 )
 
 SELECT
-    ServiceName,
-
     -- Days observed
     COUNT(*) AS TotalDays,
 
@@ -149,26 +121,16 @@ SELECT
     SUM(daily_uncovered_contracted) AS Uncovered_ContractedCost,
 
     -- === ESTIMATED ANNUAL COMMITMENT ($/hr * 8760 hrs/yr) ===
-    -- Based on total spend
     percentile_approx(daily_total_effective, 0.25) / 24 * 8760 AS Total_P25_AnnualCommitment,
     percentile_approx(daily_total_effective, 0.50) / 24 * 8760 AS Total_P50_AnnualCommitment,
     percentile_approx(daily_total_effective, 0.90) / 24 * 8760 AS Total_P90_AnnualCommitment,
-    -- Based on uncovered spend
     percentile_approx(daily_uncovered_effective, 0.25) / 24 * 8760 AS Uncovered_P25_AnnualCommitment,
     percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 AS Uncovered_P50_AnnualCommitment,
 
     -- === ESTIMATED ANNUAL SAVINGS (assuming 25% discount on committed spend) ===
-    -- Annualized current spend (period total / days * 365)
     SUM(daily_total_effective) / COUNT(*) * 365 AS Total_AnnualizedSpend,
     SUM(daily_uncovered_effective) / COUNT(*) * 365 AS Uncovered_AnnualizedSpend,
-    -- Estimated savings at P50 commitment level (25% of committed portion)
     percentile_approx(daily_total_effective, 0.50) / 24 * 8760 * 0.25 AS Total_P50_EstimatedAnnualSavings,
     percentile_approx(daily_uncovered_effective, 0.50) / 24 * 8760 * 0.25 AS Uncovered_P50_EstimatedAnnualSavings
 
-FROM combined
-
-GROUP BY ServiceName
-
-ORDER BY
-    CASE WHEN ServiceName = 'ALL SERVICES' THEN 1 ELSE 0 END,
-    Total_EffectiveCost DESC;
+FROM daily_spend;
