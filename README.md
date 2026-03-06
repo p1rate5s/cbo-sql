@@ -28,3 +28,8 @@ All queries run against the production FOCUS table:
 | `query_10c.sql` | **Eligible Services Coverage (January 2026)** - Same as Query 10 for January 2026 only |
 | `query_11.sql` | **Commitment Savings Details (All Charge Types)** - Individual commitment savings since 10/1/2025 |
 | `query_12.sql` | **Commitment Savings Opportunity** - Uncovered eligible services with potential savings estimates |
+| `query_13.sql` | **Fixed $/Hour Spend by Charge Description** - Uncovered eligible services with hourly cost rates |
+| `query_14.sql` | **Unique SKUs Covered by Savings Plans or RIs** - Distinct SKUs with commitment discount coverage |
+| `query_15.sql` | **Compute Savings Plan Sizing Analysis** - Percentile-based $/hour commitment sizing for compute |
+| `query_16.sql` | **Compute Savings Plan Sizing - Validation** - Simple aggregation to validate Query 15 totals |
+| `query_17.sql` | **Storage Reserved Instance Opportunity Analysis** - Storage spend analysis with RI-eligible capacity classification and savings estimates |
